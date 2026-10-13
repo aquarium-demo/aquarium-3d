@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeTank, TANK } from './tank.js';
+import { makeSand } from './sand.js';
 
 // Radians per second: one full turn around the tank in about 30 s.
 const ORBIT = 0.2;
@@ -41,6 +42,7 @@ scene.add(ground);
 
 const tank = makeTank();
 scene.add(tank);
+scene.add(makeSand());
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
