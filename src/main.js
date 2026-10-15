@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { makeTank, TANK } from './tank.js';
 import { makeSand } from './sand.js';
 
-// Radians per second: one full turn around the tank in about 30 s.
-const ORBIT = 0.2;
+// Radians per second: one full turn around the tank in about 80 s.
+const ORBIT = 0.08;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
