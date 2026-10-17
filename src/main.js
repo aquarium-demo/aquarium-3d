@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { makeTank, TANK } from './tank.js';
 import { makeSand } from './sand.js';
 import { makeBubbles } from './bubbles.js';
+import { makePlants } from './plants.js';
 
 // Radians per second: one full turn around the tank in about 80 s.
 const ORBIT = 0.08;
@@ -45,6 +46,7 @@ const tank = makeTank();
 scene.add(tank);
 scene.add(makeSand());
 const bubbles = makeBubbles(); scene.add(bubbles);
+const plants = makePlants(); scene.add(plants);
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
@@ -54,6 +56,7 @@ renderer.setAnimationLoop(() => {
   camera.lookAt(0, 0.9, 0);
   tank.userData.tick(time);
   bubbles.userData.tick(time);
+  plants.userData.tick(time);
   renderer.render(scene, camera);
 });
 
