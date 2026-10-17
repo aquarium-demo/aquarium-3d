@@ -24,6 +24,7 @@ export function makeBubbles(seed = 11) {
   const strayRand = random(seed * 7 + 3);
   const limitX = TANK.width / 2 - 0.1, limitZ = TANK.depth / 2 - 0.1;
   const clamp = (v, limit) => Math.max(-limit, Math.min(limit, v));
+  const maxRadius = 0.1; // the biggest a bubble gets (0.055 grown by 1.75x), rounded up
   const top = TANK.water - 0.03; // the surface ripples a little, so pop just under it
 
   const stoneMaterial = new THREE.MeshStandardMaterial({ color: '#9aa3a8', roughness: 0.95, flatShading: true });
@@ -34,7 +35,7 @@ export function makeBubbles(seed = 11) {
     stone.position.set(x, sandY(x, z) + 0.02, z);
     stone.castShadow = true;
     group.add(stone);
-    return { x, z, y: stone.position.y + 0.04, wait: rand() * STREAM_GAP, rand };
+    return { x, z, y: stone.position.y + 0.055, wait: rand() * STREAM_GAP, rand };
   });
 
   const geometry = new THREE.SphereGeometry(1, 14, 10);
@@ -69,12 +70,14 @@ export function makeBubbles(seed = 11) {
   const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
   for (let i = 0; i < POOL; i++) mesh.setMatrixAt(i, hidden);
 
-  function spawn(rand, x, z, startY) {
+  function spawn(rand, x, z, baseY) {
     // Take the next slot; if the pool is full the oldest bubble is recycled.
     const i = next;
     next = (next + 1) % POOL;
-    x0[i] = x; z0[i] = z; y[i] = startY;
+    x0[i] = x; z0[i] = z;
     size[i] = 0.025 + rand() * 0.03;
+    // Born resting on the surface, with a margin for the sideways wobble over sloping sand.
+    y[i] = baseY + size[i] + 0.015;
     speed[i] = 0.15 + rand() * 0.1;
     phase[i] = rand() * Math.PI * 2;
     wobble[i] = 0.015 + rand() * 0.025;
@@ -98,8 +101,8 @@ export function makeBubbles(seed = 11) {
 
     strayWait -= dt;
     while (strayWait <= 0) {
-      const x = (strayRand() - 0.5) * 2 * limitX, z = (strayRand() - 0.5) * 2 * limitZ;
-      spawn(strayRand, x, z, sandY(x, z) + 0.03);
+      const x = (strayRand() - 0.5) * 2 * (limitX - maxRadius), z = (strayRand() - 0.5) * 2 * (limitZ - maxRadius);
+      spawn(strayRand, x, z, sandY(x, z));
       strayWait += STRAY_GAP * (0.4 + strayRand() * 1.2);
     }
 
@@ -118,10 +121,11 @@ export function makeBubbles(seed = 11) {
       }
       // Wobble sideways, more as it climbs; wider bubbles wobble in a looser circle.
       const sway = wobble[i] * (1 + rise[i] * 0.4);
-      const px = clamp(x0[i] + Math.sin(time * 3 + phase[i]) * sway, limitX);
-      const pz = clamp(z0[i] + Math.cos(time * 2.3 + phase[i]) * sway * 0.7, limitZ);
-      // Shrink all the way to nothing over the last stretch, so the pop is soft.
-      const k = r * Math.min(1, (top - y[i] - r) / 0.12);
+      // Grow in over the first few cm and shrink out over the last stretch, so both ends are soft.
+      const k = r * Math.min(1, rise[i] / 0.05, (top - y[i] - r) / 0.12);
+      // Keep the whole bubble inside the glass, not just its centre.
+      const px = clamp(x0[i] + Math.sin(time * 3 + phase[i]) * sway, limitX - k);
+      const pz = clamp(z0[i] + Math.cos(time * 2.3 + phase[i]) * sway * 0.7, limitZ - k);
       scratch.position.set(px, y[i], pz);
       scratch.scale.set(k, k, k);
       scratch.updateMatrix();
