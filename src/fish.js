@@ -48,7 +48,7 @@ export function makeFish(seed = 11) {
   const steer = new THREE.Vector3(), tmp = new THREE.Vector3();
   const sep = new THREE.Vector3(), ali = new THREE.Vector3(), coh = new THREE.Vector3();
   const right = new THREE.Vector3(), up = new THREE.Vector3(), fwd = new THREE.Vector3();
-  const matrix = new THREE.Matrix4();
+  const matrix = new THREE.Matrix4(), scale = new THREE.Vector3();
   let last = null;
 
   // Push back from a wall: zero outside the margin, rising smoothly to 1 at the wall.
@@ -93,11 +93,11 @@ export function makeFish(seed = 11) {
         steer.addScaledVector(w, 0.35);
 
         // Soft boundaries. Steer early; the margin grows with body length so big fish turn sooner.
-        const half = length[i] * 0.5;
-        const bx = limitX - half, bz = limitZ - half;
+        const reach = length[i] * 0.65; // tail tip is the longest part, 0.62 of a body length
+        const bx = limitX - reach, bz = limitZ - reach;
         steer.x -= Math.sign(p.x) * push(Math.abs(p.x) - (bx - WALL_MARGIN)) * 3;
         steer.z -= Math.sign(p.z) * push(Math.abs(p.z) - (bz - WALL_MARGIN)) * 3;
-        const floor = sandHeight(p.x, p.z) + 0.15 + half * 0.5, ceil = TANK.water - 0.15 - half * 0.5;
+        const floor = sandHeight(p.x, p.z) + 0.15 + reach * 0.5, ceil = TANK.water - 0.15 - reach * 0.5;
         steer.y += push(floor + WALL_MARGIN - p.y) * 3;
         steer.y -= push(p.y - (ceil - WALL_MARGIN)) * 3;
         // Mid-water is where the interest is; a faint pull back from the extremes.
@@ -119,11 +119,11 @@ export function makeFish(seed = 11) {
       const p = pos[i], v = vel[i];
       p.addScaledVector(v, dt);
       // Last resort: never let the body cross the glass, sand or surface.
-      const half = length[i] * 0.5;
-      const bx = limitX - half * 0.7, bz = limitZ - half * 0.7;
+      const reach = length[i] * 0.65;
+      const bx = limitX - reach, bz = limitZ - reach;
       if (Math.abs(p.x) > bx) { p.x = Math.sign(p.x) * bx; v.x *= -0.2; }
       if (Math.abs(p.z) > bz) { p.z = Math.sign(p.z) * bz; v.z *= -0.2; }
-      const lo = sandHeight(p.x, p.z) + 0.1 + half * 0.3, hi = TANK.water - 0.1 - half * 0.3;
+      const lo = sandHeight(p.x, p.z) + 0.1 + reach * 0.45, hi = TANK.water - 0.1 - reach * 0.45;
       if (p.y < lo) { p.y = lo; v.y = Math.max(v.y, 0); }
       if (p.y > hi) { p.y = hi; v.y = Math.min(v.y, 0); }
 
@@ -138,10 +138,11 @@ export function makeFish(seed = 11) {
       tmp.copy(right).multiplyScalar(c).addScaledVector(up, s); // roll about the heading
       up.multiplyScalar(c).addScaledVector(right, -s);
       right.copy(tmp);
-      matrix.makeBasis(right, up, fwd).setPosition(p);
+      // The shape is unit length, so scale the basis by the body length.
+      matrix.makeBasis(right, up, fwd).scale(scale.setScalar(length[i])).setPosition(p);
 
-      // Wiggle faster the faster we swim, and a little faster for small fish.
-      phase[i] += dt * (3 + 9 * (v.length() / MAX_SPEED)) * (0.25 / Math.max(length[i], 0.1) + 0.75);
+      // Wiggle faster the faster we swim (about 6-14 rad/s).
+      phase[i] += dt * (6 + 8 * (v.length() / MAX_SPEED));
       school.setFish(i, matrix, phase[i]);
     }
     school.commit();
