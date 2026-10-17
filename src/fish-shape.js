@@ -35,17 +35,16 @@ function fin(points, x = 0) {
 function buildGeometry(color, accent) {
   // Body: a sphere stretched along Z, fat near the front and tapering to the tail.
   const body = new THREE.SphereGeometry(0.5, 20, 14);
+  body.deleteAttribute('uv'); // fins have none, and merging needs matching attributes
   // Map the sphere's (x, y, z) onto (side, along, up).
-  const src = new THREE.SphereGeometry(0.5, 20, 14);
-  const s = src.attributes.position;
   const b = body.attributes.position;
-  for (let i = 0; i < s.count; i++) {
-    const along = s.getY(i) / 0.5; // -1 tail .. 1 nose
+  for (let i = 0; i < b.count; i++) {
+    const x = b.getX(i), y = b.getY(i), z = b.getZ(i);
+    const along = y / 0.5; // -1 tail .. 1 nose
     const shape = along < 0 ? 0.25 + 0.75 * Math.sqrt(1 + along) : 1;
-    b.setXYZ(i, s.getX(i) * 0.3 * shape, s.getZ(i) * 0.5 * shape, along * 0.38 - 0.05);
+    b.setXYZ(i, x * 0.3 * shape, z * 0.5 * shape, along * 0.38 - 0.05);
   }
   body.computeVertexNormals();
-  src.dispose();
 
   const tail = fin([[-0.4, 0], [-0.62, 0.17], [-0.56, 0], [-0.62, -0.17]]);
   const dorsal = fin([[0.12, 0.2], [-0.1, 0.34], [-0.24, 0.14]]);
@@ -53,6 +52,7 @@ function buildGeometry(color, accent) {
 
   const parts = [paint(body, color), paint(tail, accent), paint(dorsal, accent), paint(side(1), accent), paint(side(-1), accent)];
   const merged = mergeGeometries(parts);
+  if (!merged) throw new Error('fish-shape: mergeGeometries failed (mismatched attributes)');
   parts.forEach((g) => g.dispose());
   return merged;
 }
