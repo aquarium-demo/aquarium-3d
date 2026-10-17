@@ -61,7 +61,7 @@ export function makeTank() {
     surfaceGeometry,
     new THREE.MeshStandardMaterial({
       color: '#c9eef3', roughness: 0.1, metalness: 0.2,
-      transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide,
     }),
   );
   surface.position.y = water;
