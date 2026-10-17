@@ -47,7 +47,7 @@ export function makeTank() {
     new THREE.BoxGeometry(width - 0.04, water, depth - 0.04),
     new THREE.MeshStandardMaterial({
       color: '#6cc4d3', roughness: 0.2,
-      transparent: true, opacity: 0.22, depthWrite: false,
+      transparent: true, opacity: 0.15, depthWrite: false,
     }),
   );
   waterBody.position.y = water / 2;
