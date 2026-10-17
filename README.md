@@ -15,4 +15,5 @@ Then open http://localhost:8000.
 - [x] Glass tank, water and soft light
 - [x] Sand floor with pebbles
 - [x] Fish that swim and turn
-- [ ] Plants and bubbles
+- [x] Plants that sway
+- [x] Bubbles that rise
