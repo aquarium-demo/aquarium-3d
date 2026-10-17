@@ -44,8 +44,7 @@ scene.add(ground);
 const tank = makeTank();
 scene.add(tank);
 scene.add(makeSand());
-const fish = makeFish();
-scene.add(fish);
+const fish = makeFish(); scene.add(fish);
 
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
