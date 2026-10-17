@@ -42,13 +42,13 @@ function buildGeometry(color, accent) {
   for (let i = 0; i < s.count; i++) {
     const along = s.getY(i) / 0.5; // -1 tail .. 1 nose
     const shape = along < 0 ? 0.25 + 0.75 * Math.sqrt(1 + along) : 1;
-    b.setXYZ(i, s.getX(i) * 0.36 * shape, s.getZ(i) * 0.9 * shape, along * 0.38 - 0.05);
+    b.setXYZ(i, s.getX(i) * 0.3 * shape, s.getZ(i) * 0.5 * shape, along * 0.38 - 0.05);
   }
   body.computeVertexNormals();
   src.dispose();
 
   const tail = fin([[-0.4, 0], [-0.62, 0.17], [-0.56, 0], [-0.62, -0.17]]);
-  const dorsal = fin([[0.12, 0.17], [-0.1, 0.3], [-0.24, 0.12]]);
+  const dorsal = fin([[0.12, 0.2], [-0.1, 0.34], [-0.24, 0.14]]);
   const side = (sign) => fin([[0.1, -0.03], [-0.04, -0.1], [-0.07, 0.0]], sign * 0.12);
 
   const parts = [paint(body, color), paint(tail, accent), paint(dorsal, accent), paint(side(1), accent), paint(side(-1), accent)];
