@@ -99,6 +99,8 @@ export function makePlants(seed = 11) {
   const { width, depth } = TANK;
   const dummy = new THREE.Object3D();
 
+  // `reach` is the real worst-case horizontal extent of a plant (lean + sway +
+  // half width, after scaling), so even the back rows stay inside the glass.
   // Plants live at the back and sides; the middle stays open for the fish.
   function place(centres, reach) {
     const [cx, cz, spread] = centres[Math.floor(rand() * centres.length)];
@@ -143,11 +145,11 @@ export function makePlants(seed = 11) {
     const b = builder();
     const blades = 5;
     for (let i = 0; i < blades; i++) {
-      b.strip(0.09 + (i % 2) * 0.03, 1, 0.12 + i * 0.07, (i / blades) * Math.PI * 2 + 0.5, 10, '#2f6b3c', '#8fc47a');
+      b.strip(0.09 + (i % 2) * 0.03, 1, 0.02 + i * 0.01, (i / blades) * Math.PI * 2 + 0.5, 10, '#2f6b3c', '#8fc47a');
     }
-    kind(b.build(), mat('grass', 0.22), 34,
+    kind(b.build(), mat('grass', 0.09), 34,
       [[-2.3, -1.1, 0.5], [-1.3, -1.35, 0.4], [1.6, -1.3, 0.5], [2.4, -0.6, 0.45], [0.2, -1.4, 0.6], [-2.6, 0.5, 0.35]],
-      0.6, (r) => [0.9 + r() * 0.5, 2.0 + r() * 0.6]);
+      0.3, (r) => [0.9 + r() * 0.3, 2.0 + r() * 0.6]);
   }
 
   // (b) Bushy stems with small leaves up the sides.
@@ -156,31 +158,31 @@ export function makePlants(seed = 11) {
     const stems = 4;
     for (let i = 0; i < stems; i++) {
       const a = (i / stems) * Math.PI * 2;
-      const lean = 0.18 + (i % 2) * 0.1;
+      const lean = 0.06 + (i % 2) * 0.04;
       b.strip(0.025, 1, lean, a, 6, '#3d6e3a', '#6aa35a', 0.3);
       for (let j = 1; j <= 6; j++) {
         const t = j / 6.5;
         const ca = Math.cos(a), sa = Math.sin(a);
         const lx = lean * t * t;
         // Leaf roots sit on the stem; leaves alternate sides and shrink upward.
-        b.leaf(lx * ca, t, -lx * sa, 0.2 - t * 0.08, a + (j % 2 ? 0.9 : -0.9) + j, '#4e8a45', '#a3d27c');
-        b.leaf(lx * ca, t, -lx * sa, 0.2 - t * 0.08, a + (j % 2 ? -2.2 : 2.2) + j, '#4e8a45', '#a3d27c');
+        b.leaf(lx * ca, t, -lx * sa, 0.17 - t * 0.06, a + (j % 2 ? 0.9 : -0.9) + j, '#4e8a45', '#a3d27c');
+        b.leaf(lx * ca, t, -lx * sa, 0.17 - t * 0.06, a + (j % 2 ? -2.2 : 2.2) + j, '#4e8a45', '#a3d27c');
       }
     }
-    kind(b.build(), mat('bush', 0.14), 22,
+    kind(b.build(), mat('bush', 0.08), 22,
       [[-2.5, -0.9, 0.4], [2.5, -1.0, 0.4], [-0.9, -1.35, 0.35], [1.1, -1.35, 0.35], [2.6, 0.7, 0.3]],
-      0.4, (r) => { const s = 0.6 + r() * 0.6; return [s, s]; });
+      0.35, (r) => { const s = 0.65 + r() * 0.45; return [s, s]; });
   }
 
   // (c) Low moss: small tufts packed into a couple of patches.
   {
     const b = builder();
     for (let i = 0; i < 5; i++) {
-      b.strip(0.05, 1, 0.25, (i / 5) * Math.PI * 2, 3, '#3f7a42', '#86bd6c', 0.5);
+      b.strip(0.05, 1, 0.12, (i / 5) * Math.PI * 2, 3, '#3f7a42', '#86bd6c', 0.5);
     }
-    kind(b.build(), mat('moss', 0.1), 150,
+    kind(b.build(), mat('moss', 0.05), 150,
       [[-2.0, -0.2, 0.28], [-2.55, 1.0, 0.3], [2.2, 0.4, 0.3], [1.5, -1.0, 0.25], [-0.4, -1.4, 0.3]],
-      0.15, (r) => [0.8 + r() * 0.5, 0.1 + r() * 0.1]);
+      0.28, (r) => [0.7 + r() * 0.4, 0.1 + r() * 0.1]);
   }
 
   group.userData.tick = (time) => { uTime.value = time; };
