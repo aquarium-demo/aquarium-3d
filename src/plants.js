@@ -145,7 +145,9 @@ export function makePlants(seed = 11) {
     const b = builder();
     const blades = 5;
     for (let i = 0; i < blades; i++) {
-      b.strip(0.09 + (i % 2) * 0.03, 1, 0.02 + i * 0.01, (i / blades) * Math.PI * 2 + 0.5, 10, '#2f6b3c', '#8fc47a');
+      // Uneven heights, thin blades and a near-point tip keep it soft, not poles.
+      b.strip(0.05 + (i % 3) * 0.01, [1, 0.7, 0.88, 0.6, 0.8][i], 0.02 + i * 0.01,
+        (i / blades) * Math.PI * 2 + 0.5, 10, '#2f6b3c', '#8fc47a', 0.9);
     }
     kind(b.build(), mat('grass', 0.09), 34,
       [[-2.3, -1.1, 0.5], [-1.3, -1.35, 0.4], [1.6, -1.3, 0.5], [2.4, -0.6, 0.45], [0.2, -1.4, 0.6], [-2.6, 0.5, 0.35]],
