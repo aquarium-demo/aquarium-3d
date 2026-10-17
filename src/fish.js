@@ -18,6 +18,9 @@ const MIN_SPEED = 0.35, MAX_SPEED = 1.0, CRUISE = 0.65;
 const MAX_ACCEL = 1.6;       // keeps turns wide and unhurried
 const NEIGHBOUR = 1.3, SEPARATION = 0.38;
 const WALL_MARGIN = 0.7;     // where steering away from a wall begins
+const LOOK = 0.8;            // seconds of look-ahead for wall steering
+const WALL_ACCEL = 5;        // its own budget, bigger than MAX_ACCEL
+const MAX_TURN = 2.5;        // radians per second the heading may swing
 const MAX_DT = 1 / 20;       // a slow frame (or a hidden tab) must not fling anyone
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -45,6 +48,7 @@ export function makeFish(seed = 11) {
     wobble.push(rand() * 100);
   }
 
+  const before = new THREE.Vector3(), after = new THREE.Vector3();
   const steer = new THREE.Vector3(), tmp = new THREE.Vector3();
   const sep = new THREE.Vector3(), ali = new THREE.Vector3(), coh = new THREE.Vector3();
   const right = new THREE.Vector3(), up = new THREE.Vector3(), fwd = new THREE.Vector3();
@@ -92,26 +96,44 @@ export function makeFish(seed = 11) {
         w.set(Math.sin(t * 1.3) + Math.sin(t * 0.7 + 2), 0.3 * Math.sin(t * 0.9 + 1), Math.sin(t * 1.1 + 4) + Math.sin(t * 0.6));
         steer.addScaledVector(w, 0.35);
 
-        // Soft boundaries. Steer early; the margin grows with body length so big fish turn sooner.
-        const reach = length[i] * 0.65; // tail tip is the longest part, 0.62 of a body length
-        const bx = limitX - reach, bz = limitZ - reach;
-        steer.x -= Math.sign(p.x) * push(Math.abs(p.x) - (bx - WALL_MARGIN)) * 3;
-        steer.z -= Math.sign(p.z) * push(Math.abs(p.z) - (bz - WALL_MARGIN)) * 3;
-        const floor = sandHeight(p.x, p.z) + 0.15 + reach * 0.5, ceil = TANK.water - 0.15 - reach * 0.5;
-        steer.y += push(floor + WALL_MARGIN - p.y) * 3;
-        steer.y -= push(p.y - (ceil - WALL_MARGIN)) * 3;
-        // Mid-water is where the interest is; a faint pull back from the extremes.
-        steer.y += (1.6 - p.y) * 0.05;
-
         steer.y *= 0.6; // mostly level swimming, like a real school
+        // Boids get a modest budget; walls get their own below, so a crowd never drowns them out.
         if (steer.length() > MAX_ACCEL) steer.setLength(MAX_ACCEL);
         acc[i].lerp(steer, 1 - Math.exp(-dt * 6)); // smooth, so turns never snap
 
+        before.copy(v).normalize();
         v.addScaledVector(acc[i], dt);
         v.y *= 1 - Math.min(dt * 1.5, 1); // damp climbing and diving
+
+        // Walls: judge from where we'll be in a moment, so the turn starts early and stays gentle.
+        // Push inward, drop the into-wall speed (so we slide along the glass), and slow down near it.
+        const reach = length[i] * 0.65; // tail tip is the longest part, 0.62 of a body length
+        const bx = limitX - reach, bz = limitZ - reach;
+        const ax = p.x + v.x * LOOK, ay = p.y + v.y * LOOK, az = p.z + v.z * LOOK;
+        const fx = push(Math.abs(ax) - (bx - WALL_MARGIN)), fz = push(Math.abs(az) - (bz - WALL_MARGIN));
+        const floor = sandHeight(ax, az) + 0.15 + reach * 0.5, ceil = TANK.water - 0.15 - reach * 0.5;
+        const fl = push(floor + WALL_MARGIN - ay), fc = push(ay - (ceil - WALL_MARGIN));
+        const near = Math.max(fx, fz, fl, fc);
+        if (near > 0) {
+          const slide = Math.min(dt * 5, 1);
+          if (fx > 0 && v.x * p.x > 0) v.x -= v.x * fx * slide;
+          if (fz > 0 && v.z * p.z > 0) v.z -= v.z * fz * slide;
+          if (fl > 0 && v.y < 0) v.y -= v.y * fl * slide;
+          if (fc > 0 && v.y > 0) v.y -= v.y * fc * slide;
+          v.x -= Math.sign(p.x) * fx * WALL_ACCEL * dt;
+          v.z -= Math.sign(p.z) * fz * WALL_ACCEL * dt;
+          v.y += (fl - fc) * WALL_ACCEL * 0.5 * dt;
+        }
         const s = THREE.MathUtils.clamp(v.length(), MIN_SPEED, MAX_SPEED);
         // Ease speed toward cruise so fish don't sit at a limit.
-        v.setLength(s + (CRUISE - s) * Math.min(dt * 0.5, 1));
+        v.setLength(s + (CRUISE - s) * Math.min(dt * 0.5, 1) - near * (s - MIN_SPEED) * Math.min(dt * 1.5, 1));
+        // Never swing the heading faster than a calm fish would.
+        after.copy(v).normalize();
+        const ang = before.angleTo(after);
+        if (ang > MAX_TURN * dt) {
+          const sp = v.length();
+          v.copy(before).lerp(after, (MAX_TURN * dt) / ang).setLength(sp);
+        }
       }
     }
 
@@ -121,8 +143,9 @@ export function makeFish(seed = 11) {
       // Last resort: never let the body cross the glass, sand or surface.
       const reach = length[i] * 0.65;
       const bx = limitX - reach, bz = limitZ - reach;
-      if (Math.abs(p.x) > bx) { p.x = Math.sign(p.x) * bx; v.x *= -0.2; }
-      if (Math.abs(p.z) > bz) { p.z = Math.sign(p.z) * bz; v.z *= -0.2; }
+      // Slide, don't bounce: only the outward speed is removed.
+      if (Math.abs(p.x) > bx) { p.x = Math.sign(p.x) * bx; if (v.x * p.x > 0) v.x = 0; }
+      if (Math.abs(p.z) > bz) { p.z = Math.sign(p.z) * bz; if (v.z * p.z > 0) v.z = 0; }
       const lo = sandHeight(p.x, p.z) + 0.1 + reach * 0.45, hi = TANK.water - 0.1 - reach * 0.45;
       if (p.y < lo) { p.y = lo; v.y = Math.max(v.y, 0); }
       if (p.y > hi) { p.y = hi; v.y = Math.min(v.y, 0); }
