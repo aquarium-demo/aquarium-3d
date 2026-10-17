@@ -20,30 +20,34 @@ const STRAY_GAP = 2.2; // average seconds between stray bubbles
 // Air stones on the sand, each sending up a stream, plus the odd stray bubble.
 export function makeBubbles(seed = 11) {
   const group = new THREE.Group();
-  const rand = random(seed);
+  // One rng per source, so each stream looks the same whatever the frame rate.
+  const strayRand = random(seed * 7 + 3);
   const limitX = TANK.width / 2 - 0.1, limitZ = TANK.depth / 2 - 0.1;
   const clamp = (v, limit) => Math.max(-limit, Math.min(limit, v));
   const top = TANK.water - 0.03; // the surface ripples a little, so pop just under it
 
   const stoneMaterial = new THREE.MeshStandardMaterial({ color: '#9aa3a8', roughness: 0.95, flatShading: true });
-  const stones = STONES.map(([x, z]) => {
+  const stones = STONES.map(([x, z], n) => {
+    const rand = random(seed * 31 + n * 101 + 17);
     const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.09, 0), stoneMaterial);
     stone.scale.set(1.2, 0.55, 1);
     stone.position.set(x, sandY(x, z) + 0.02, z);
     stone.castShadow = true;
     group.add(stone);
-    return { x, z, y: stone.position.y + 0.04, wait: rand() * STREAM_GAP };
+    return { x, z, y: stone.position.y + 0.04, wait: rand() * STREAM_GAP, rand };
   });
 
   const geometry = new THREE.SphereGeometry(1, 14, 10);
   const material = new THREE.MeshPhysicalMaterial({
-    color: '#dcefff',
+    color: '#c4e0f5',
+    emissive: '#8fbfe6', // a soft cool glow so they read on the pale background
+    emissiveIntensity: 0.18,
     roughness: 0.04,
     metalness: 0,
     clearcoat: 1,
     clearcoatRoughness: 0.03,
     transparent: true,
-    opacity: 0.45,
+    opacity: 0.55,
     depthWrite: false, // so bubbles never cut holes in the water behind them
   });
   const mesh = new THREE.InstancedMesh(geometry, material, POOL);
@@ -59,15 +63,13 @@ export function makeBubbles(seed = 11) {
   const wobble = new Float32Array(POOL), rise = new Float32Array(POOL);
   const alive = new Uint8Array(POOL);
   let next = 0;
-  let strayWait = rand() * STRAY_GAP;
+  let strayWait = strayRand() * STRAY_GAP;
 
   const scratch = new THREE.Object3D();
-  scratch.rotation.set(0, 0, 0);
-  scratch.updateMatrix();
-  const hidden = scratch.matrix.clone().makeScale(0, 0, 0);
+  const hidden = new THREE.Matrix4().makeScale(0, 0, 0);
   for (let i = 0; i < POOL; i++) mesh.setMatrixAt(i, hidden);
 
-  function spawn(x, z, startY) {
+  function spawn(rand, x, z, startY) {
     // Take the next slot; if the pool is full the oldest bubble is recycled.
     const i = next;
     next = (next + 1) % POOL;
@@ -85,19 +87,20 @@ export function makeBubbles(seed = 11) {
     const dt = last === null ? 0 : Math.min(Math.max(time - last, 0), 0.1);
     last = time;
 
-    for (const s of stones) {
+    for (let n = 0; n < stones.length; n++) {
+      const s = stones[n], rand = s.rand;
       s.wait -= dt;
       while (s.wait <= 0) {
-        spawn(s.x + (rand() - 0.5) * 0.04, s.z + (rand() - 0.5) * 0.04, s.y);
+        spawn(rand, s.x + (rand() - 0.5) * 0.04, s.z + (rand() - 0.5) * 0.04, s.y);
         s.wait += STREAM_GAP * (0.7 + rand() * 0.6);
       }
     }
 
     strayWait -= dt;
     while (strayWait <= 0) {
-      const x = clamp((rand() - 0.5) * 2 * limitX, limitX), z = clamp((rand() - 0.5) * 2 * limitZ, limitZ);
-      spawn(x, z, sandY(x, z) + 0.03);
-      strayWait += STRAY_GAP * (0.4 + rand() * 1.2);
+      const x = (strayRand() - 0.5) * 2 * limitX, z = (strayRand() - 0.5) * 2 * limitZ;
+      spawn(strayRand, x, z, sandY(x, z) + 0.03);
+      strayWait += STRAY_GAP * (0.4 + strayRand() * 1.2);
     }
 
     for (let i = 0; i < POOL; i++) {
@@ -117,9 +120,8 @@ export function makeBubbles(seed = 11) {
       const sway = wobble[i] * (1 + rise[i] * 0.4);
       const px = clamp(x0[i] + Math.sin(time * 3 + phase[i]) * sway, limitX);
       const pz = clamp(z0[i] + Math.cos(time * 2.3 + phase[i]) * sway * 0.7, limitZ);
-      // Shrink out over the last stretch so the pop reads as soft.
-      const fade = Math.min(1, (top - y[i] - r) / 0.12);
-      const k = r * (0.4 + 0.6 * Math.max(fade, 0));
+      // Shrink all the way to nothing over the last stretch, so the pop is soft.
+      const k = r * Math.min(1, (top - y[i] - r) / 0.12);
       scratch.position.set(px, y[i], pz);
       scratch.scale.set(k, k, k);
       scratch.updateMatrix();
